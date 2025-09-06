@@ -128,7 +128,9 @@ module.exports = class UserController {
         
         const { name, email, phone, password, confirmpassword } = req.body;
         
-        let image = '';
+        if(req.file){
+            user.image = req.file.filename;
+        }
         
         // validatons
         if(!name){
@@ -151,20 +153,32 @@ module.exports = class UserController {
             res.status(422).json({ message: 'O telefone é obrigatório' });
             return;
         }
-        if(!password){
-            res.status(422).json({ message: 'A senha é obrigatória!' });
+        user.phone = phone;
+        
+        if(password != confirmpassword){
+            res.status(422).json({ message: 'As senhas não conferem!' });
             return;
-        }
-        if(!confirmpassword){
-            res.status(422).json({ message: 'A confirmação de senha é obrigatória!' });
-            return;
-        }
-        if(password !== confirmpassword){
-            res.status(422).json({ message: 'A senha e a confirmação de senha precisam ser iguais!' });
-            return;
+        }else if(password === confirmpassword && password != null){
+            // creating a new password
+            const salt = await bcrypt.genSalt(12);
+            const passwordHash = await bcrypt.hash(password, salt);
+
+            user.password = passwordHash;
         }
         
+        try {
+           // returns user updated data
+           await User.findOneAndUpdate(
+            { _id: user._id },
+            { $set: user },
+            { new: true}
+           ); 
 
+           res.status(200).json({ message: "Usuário atualizado com sucesso!" });
+        } catch (error) {
+            res.status(500).json({ message: error });
+            return;
+        }
 
     }
 }
